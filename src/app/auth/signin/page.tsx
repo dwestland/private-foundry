@@ -25,7 +25,7 @@ export default async function SignInPage() {
             </button>
           </form>
 
-          <form
+          {/* <form
             action={async () => {
               'use server'
               await signIn('google', { redirectTo: '/' })
@@ -34,7 +34,7 @@ export default async function SignInPage() {
             <button className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-400">
               Sign in with Google
             </button>
-          </form>
+          </form> */}
 
           <form
             action={async (formData: FormData) => {

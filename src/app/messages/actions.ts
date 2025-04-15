@@ -30,7 +30,7 @@ export async function sendMessage(formData: FormData) {
     await resend.emails.send({
       from: process.env.AUTH_RESEND_FROM!,
       to: process.env.AUTH_RESEND_FROM!,
-      subject: `Resume Bueno Message from ${name} (via website)`,
+      subject: `Private Foundry Message from ${name} (via website)`,
       text: message,
       html: `<p><strong>Name:</strong> ${name}</p>
              <p><strong>Email:</strong> ${email}</p>
