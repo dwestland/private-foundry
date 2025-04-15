@@ -15,7 +15,10 @@ async function TopNav() {
           <Link href="/user-info" className="hover:underline">
             User Info
           </Link>
-          <Link href="/todos" className="hover:underline">
+          <Link href="/json-uploader" className="hover:underline">
+            JSON Uploader
+          </Link>
+          {/* <Link href="/todos" className="hover:underline">
             Todos
           </Link>
           <Link href="/messages" className="hover:underline">
@@ -23,7 +26,7 @@ async function TopNav() {
           </Link>
           <Link href="/chat" className="hover:underline">
             Chat
-          </Link>
+          </Link> */}
         </div>
 
         <div className="flex items-center space-x-4">
