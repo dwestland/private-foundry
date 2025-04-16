@@ -54,35 +54,27 @@ export default function PropertyWorkbenchClient({
     }
   }
 
-  // Function to handle toggling the contacted_agent status
-  const handleToggleContactedAgent = async () => {
+  // Function to toggle contacted_agent status
+  const handleToggleContact = async () => {
     if (!selectedProperty || isToggling) return
 
     setIsToggling(true)
     try {
-      // Call the server action to toggle the status
-      // We don't need the return value as we manually update the UI for better UX
       await toggleContactedAgent(selectedProperty.id)
 
-      // Update the selected property with the new status
-      setSelectedProperty({
+      // Update local state
+      const updatedProperty = {
         ...selectedProperty,
         contacted_agent: !selectedProperty.contacted_agent,
-      })
+      }
+      setSelectedProperty(updatedProperty)
 
-      // If the property was marked as contacted, remove it from newLeads
+      // Update leads list if property was marked as contacted
       if (!selectedProperty.contacted_agent) {
         setNewLeads(newLeads.filter((lead) => lead.id !== selectedProperty.id))
       }
-      // If it was unmarked as contacted, add it back to newLeads
-      else {
-        // We would need to fetch all leads again or add it back with the right format
-        // For simplicity, we'll just refresh the property
-        const freshProperty = await getPropertyById(selectedProperty.id)
-        setSelectedProperty(freshProperty)
-      }
     } catch (error) {
-      console.error('Error toggling contacted_agent status:', error)
+      console.error('Error toggling contact status:', error)
     } finally {
       setIsToggling(false)
     }
@@ -90,12 +82,10 @@ export default function PropertyWorkbenchClient({
 
   return (
     <div className="container mx-auto p-4 text-gray-800">
-      <h1 className="text-2xl font-bold mb-6 text-gray-100">
-        PROPERTY WORKBENCH
-      </h1>
+      <h1 className="text-2xl font-bold mb-6 text-white">PROPERTY WORKBENCH</h1>
 
       <div className="flex flex-col md:flex-row gap-6">
-        {/* Left Column - Property Details */}
+        {/* Left Column */}
         <div className="flex-1">
           {isLoading ? (
             <div className="flex items-center justify-center h-40">
@@ -104,7 +94,7 @@ export default function PropertyWorkbenchClient({
           ) : selectedProperty ? (
             <>
               {/* Property Info Section */}
-              <div className="mb-8 border rounded-lg p-4 bg-white shadow">
+              <div className="mb-6 border rounded-lg p-4 bg-white shadow">
                 <h2 className="text-xl font-semibold mb-4 border-b pb-2">
                   PROPERTY INFO
                 </h2>
@@ -164,11 +154,10 @@ export default function PropertyWorkbenchClient({
                     <p>{selectedProperty.contacted_agent ? 'Yes' : 'No'}</p>
                   </div>
                   <div>
-                    <p className="font-medium">Toggle Contact Status</p>
                     <button
-                      onClick={handleToggleContactedAgent}
+                      onClick={handleToggleContact}
                       disabled={isToggling}
-                      className={`mt-1 px-3 py-1 rounded text-white ${
+                      className={`px-3 py-1 rounded text-white ${
                         isToggling
                           ? 'bg-gray-400 cursor-not-allowed'
                           : selectedProperty.contacted_agent
@@ -187,7 +176,7 @@ export default function PropertyWorkbenchClient({
               </div>
 
               {/* Agent Info Section */}
-              <div className="mb-8 border rounded-lg p-4 bg-white shadow">
+              <div className="mb-6 border rounded-lg p-4 bg-white shadow">
                 <h2 className="text-xl font-semibold mb-4 border-b pb-2">
                   AGENT INFO
                 </h2>
@@ -282,7 +271,7 @@ export default function PropertyWorkbenchClient({
 
                 {/* Other Images */}
                 <div>
-                  <h3 className="font-medium mb-2">Other Images</h3>
+                  <h3 className="font-medium mb-2">All Images</h3>
                   {selectedProperty.other_images?.length > 0 ? (
                     <div className="grid grid-cols-4 gap-4">
                       {selectedProperty.other_images.map((image) => (
@@ -306,7 +295,9 @@ export default function PropertyWorkbenchClient({
             </>
           ) : (
             <div className="border rounded-lg p-4 bg-white shadow text-center">
-              <p className="text-gray-500">No property data available</p>
+              <p className="text-gray-500">
+                Select a property from the New Leads list
+              </p>
             </div>
           )}
         </div>

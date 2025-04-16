@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 
 /**
- * Fetch a property by ID with its related images
+ * Get a property by ID with its related images
  */
 export async function getPropertyById(id: number) {
   try {
@@ -15,7 +15,6 @@ export async function getPropertyById(id: number) {
         other_images: true,
       },
     })
-
     return property
   } catch (error) {
     console.error('Error fetching property:', error)
@@ -42,7 +41,6 @@ export async function getNewLeads() {
         created_at: 'desc',
       },
     })
-
     return newLeads
   } catch (error) {
     console.error('Error fetching new leads:', error)
@@ -51,33 +49,11 @@ export async function getNewLeads() {
 }
 
 /**
- * Get the first property to display initially
- */
-export async function getInitialProperty() {
-  try {
-    const property = await prisma.property.findFirst({
-      include: {
-        unstaged_images: true,
-        other_images: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    })
-
-    return property
-  } catch (error) {
-    console.error('Error fetching initial property:', error)
-    throw new Error('Failed to fetch initial property')
-  }
-}
-
-/**
  * Toggle the contacted_agent status for a property
  */
 export async function toggleContactedAgent(id: number) {
   try {
-    // First, get the current status
+    // Get current status
     const property = await prisma.property.findUnique({
       where: { id },
       select: { contacted_agent: true },
@@ -88,17 +64,17 @@ export async function toggleContactedAgent(id: number) {
     }
 
     // Toggle the status
-    const updatedProperty = await prisma.property.update({
+    await prisma.property.update({
       where: { id },
       data: {
         contacted_agent: !property.contacted_agent,
       },
     })
 
-    // Revalidate the path to refresh data
+    // Revalidate the page
     revalidatePath('/property-workbench')
 
-    return updatedProperty
+    return { success: true }
   } catch (error) {
     console.error('Error toggling contacted_agent status:', error)
     throw new Error('Failed to update property')
