@@ -41,24 +41,40 @@ export async function publishToDatabase(
           continue
         }
 
-        // Extract property data
+        // Extract property data based on the correct JSON structure
         const propertyData = {
           street_address:
             searchResult?.property?.address?.streetAddress || null,
           zipcode: searchResult?.property?.address?.zipcode || null,
           city: searchResult?.property?.address?.city || null,
           state: searchResult?.property?.address?.state || null,
-          building_id: searchResult?.property?.buildingId || null,
-          listing_status: searchResult?.property?.listingStatus || null,
-          price: parseFloat(searchResult?.property?.price) || null,
-          display_name: searchResult?.property?.agent?.displayName || null,
-          business_name: searchResult?.property?.agent?.businessName || null,
-          phone_number: searchResult?.property?.agent?.phoneNumber || null,
-          agent_badge_type: searchResult?.property?.agent?.badgeType || null,
-          photo_url: searchResult?.property?.agent?.photoUrl || null,
-          profile_url: searchResult?.property?.agent?.profileUrl || null,
+          building_id:
+            searchResult?.property?.address?.buildingId?.toString() || null,
+          listing_status:
+            searchResult?.property?.listing?.listingStatus || null,
+          price: searchResult?.property?.price?.value || null,
+          display_name:
+            searchResult?.property?.contact_info?.propertyInfo?.agentInfo
+              ?.displayName || null,
+          business_name:
+            searchResult?.property?.contact_info?.propertyInfo?.agentInfo
+              ?.businessName || null,
+          phone_number:
+            searchResult?.property?.contact_info?.propertyInfo?.agentInfo
+              ?.phoneNumber || null,
+          agent_badge_type:
+            searchResult?.property?.contact_info?.propertyInfo?.agentInfo
+              ?.agentBadgeType || null,
+          photo_url:
+            searchResult?.property?.contact_info?.propertyInfo?.agentInfo
+              ?.photoUrl || null,
+          profile_url:
+            searchResult?.property?.contact_info?.propertyInfo?.agentInfo
+              ?.profileUrl || null,
           days_on_zillow:
-            parseInt(searchResult?.property?.daysOnZillow) || null,
+            typeof searchResult?.property?.daysOnZillow === 'number'
+              ? searchResult?.property?.daysOnZillow
+              : null,
         }
 
         // Create the property record

@@ -18,6 +18,13 @@ async function TopNav() {
           <Link href="/json-uploader" className="hover:underline">
             JSON Uploader
           </Link>
+          <Link href="/property-workbench" className="hover:underline">
+            Property Workbench
+          </Link>
+          <Link href="/prompts" className="hover:underline">
+            Prompts
+          </Link>
+
           {/* <Link href="/todos" className="hover:underline">
             Todos
           </Link>
