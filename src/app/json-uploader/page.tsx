@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { publishToDatabase } from './actions'
 
 const fileSchema = z.object({
   file: z
@@ -14,9 +15,39 @@ const fileSchema = z.object({
 
 type FileFormData = z.infer<typeof fileSchema>
 
+type ToastType = 'success' | 'error' | 'info'
+
+interface ToastProps {
+  type: ToastType
+  message: string
+}
+
+const Toast = ({ type, message }: ToastProps) => {
+  const bgColor =
+    type === 'success'
+      ? 'bg-green-500'
+      : type === 'error'
+      ? 'bg-red-500'
+      : 'bg-blue-500'
+
+  return (
+    <div
+      className={`${bgColor} text-white p-4 rounded-md shadow-md fixed top-4 right-4 z-50 max-w-md`}
+    >
+      {message}
+    </div>
+  )
+}
+
 export default function JsonUploaderPage() {
   const [jsonContent, setJsonContent] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [toast, setToast] = useState<ToastProps | null>(null)
+  const [publishResult, setPublishResult] = useState<{
+    published: number
+    skipped: number
+  } | null>(null)
 
   const {
     register,
@@ -32,6 +63,7 @@ export default function JsonUploaderPage() {
     (e: React.DragEvent) => {
       e.preventDefault()
       setIsDragging(false)
+      setPublishResult(null)
 
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0]
@@ -56,9 +88,15 @@ export default function JsonUploaderPage() {
       const content = await file.text()
       const formattedJson = JSON.stringify(JSON.parse(content), null, 2)
       setJsonContent(formattedJson)
+      setPublishResult(null)
     } catch (error) {
       console.error('Error parsing JSON file:', error)
       setJsonContent(null)
+      setToast({
+        type: 'error',
+        message: 'Invalid JSON file. Please check the format and try again.',
+      })
+      setTimeout(() => setToast(null), 5000)
     }
   }
 
@@ -73,9 +111,60 @@ export default function JsonUploaderPage() {
     }
   }
 
+  const handlePublish = async () => {
+    if (!jsonContent) return
+
+    setIsPublishing(true)
+    try {
+      const result = await publishToDatabase(jsonContent)
+
+      if (result.success) {
+        setToast({
+          type: 'success',
+          message: `Properties successfully published to database.`,
+        })
+        setPublishResult({
+          published: result.published,
+          skipped: result.skipped,
+        })
+      } else {
+        setToast({
+          type: 'error',
+          message: result.error || 'An error occurred during publishing.',
+        })
+      }
+    } catch (error) {
+      console.error('Error publishing data:', error)
+      setToast({
+        type: 'error',
+        message:
+          error instanceof Error ? error.message : 'An unknown error occurred',
+      })
+    } finally {
+      setIsPublishing(false)
+      setTimeout(() => setToast(null), 5000)
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-4">
+      {toast && <Toast type={toast.type} message={toast.message} />}
+
       <h1 className="text-2xl font-bold mb-6">JSON Uploader</h1>
+
+      {publishResult && (
+        <div className="text-gray-800 mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <h2 className="text-lg font-semibold mb-2">Publish Results</h2>
+          <p className="mb-1">
+            Number of properties published:{' '}
+            <span className="font-medium">{publishResult.published}</span>
+          </p>
+          <p>
+            Number of properties skipped:{' '}
+            <span className="font-medium">{publishResult.skipped}</span>
+          </p>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="mb-6">
         <div
@@ -124,24 +213,40 @@ export default function JsonUploaderPage() {
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={() => document.getElementById('file')?.click()}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
-        >
-          Browse Files
-        </button>
+        <div className="flex space-x-2">
+          <button
+            type="button"
+            onClick={() => document.getElementById('file')?.click()}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Browse Files
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            reset()
-            setJsonContent(null)
-          }}
-          className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-        >
-          Clear
-        </button>
+          <button
+            type="button"
+            onClick={() => {
+              reset()
+              setJsonContent(null)
+              setPublishResult(null)
+            }}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+          >
+            Clear
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePublish}
+            disabled={!jsonContent || isPublishing}
+            className={`px-4 py-2 rounded ${
+              !jsonContent || isPublishing
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-green-500 text-white hover:bg-green-600'
+            }`}
+          >
+            {isPublishing ? 'Publishing...' : 'Publish to Database'}
+          </button>
+        </div>
       </form>
 
       {jsonContent && (

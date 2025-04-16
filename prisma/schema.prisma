@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -118,4 +112,64 @@ model Message {
   createdAt DateTime @default(now())
 
   @@map("message")
+}
+
+// Property related tables
+model Property {
+  id                   Int              @id @default(autoincrement())
+  street_address       String?
+  zipcode              String?
+  city                 String?
+  state                String?
+  building_id          String?
+  listing_status       String?
+  price                Float?
+  display_name         String?
+  business_name        String?
+  phone_number         String?
+  agent_badge_type     String?
+  photo_url            String?
+  profile_url          String?
+  days_on_zillow       Int?
+  updated_first_image  Boolean? @default(false)
+  contacted_agent      Boolean? @default(false)
+
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+
+  other_images     OtherImage[]
+  unstaged_images  UnstagedImage[]
+  generated_images GeneratedImage[]
+
+  @@map("property")
+}
+
+model OtherImage {
+  id          Int      @id @default(autoincrement())
+  property_id Int
+  image_url   String
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  created_at  DateTime @default(now())
+
+  @@map("other_images")
+}
+
+model UnstagedImage {
+  id              Int      @id @default(autoincrement())
+  property_id     Int
+  unstaged_images String
+  property        Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  created_at      DateTime @default(now())
+
+  @@map("unstaged_images")
+}
+
+model GeneratedImage {
+  id          Int      @id @default(autoincrement())
+  property_id Int
+  image_url   String
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  created_at  DateTime @default(now())
+
+  @@map("generated_images")
 }
