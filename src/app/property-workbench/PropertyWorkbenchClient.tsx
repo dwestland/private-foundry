@@ -9,6 +9,7 @@ import {
 } from '@prisma/client'
 import { getPropertyById, toggleContactedAgent } from './actions'
 import ImageUploader from './ImageUploader'
+import { getS3ImageUrl } from '@/lib/utils'
 
 interface PropertyWithRelations extends Property {
   unstaged_images: UnstagedImage[]
@@ -58,6 +59,13 @@ export default function PropertyWorkbenchClient({
       console.error('Error fetching property:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Function to refresh property data after image upload
+  const handleImageUploaded = () => {
+    if (selectedProperty) {
+      fetchProperty(selectedProperty.id)
     }
   }
 
@@ -260,6 +268,7 @@ export default function PropertyWorkbenchClient({
                 <ImageUploader
                   propertyId={selectedProperty.id}
                   streetAddress={selectedProperty.street_address}
+                  onImageUploaded={handleImageUploaded}
                 />
               )}
 
@@ -268,6 +277,29 @@ export default function PropertyWorkbenchClient({
                 <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
                   IMAGES
                 </h2>
+
+                {/* Generated Images */}
+                <div className="mb-6">
+                  <h3 className="text-xl font-medium mb-2">Generated Images</h3>
+                  {selectedProperty.generated_images?.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-4">
+                      {selectedProperty.generated_images.map((image) => (
+                        <div
+                          key={image.id}
+                          className="border rounded overflow-hidden aspect-square"
+                        >
+                          <img
+                            src={getS3ImageUrl(image.image_url)}
+                            alt="Generated property"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400">No generated images found</p>
+                  )}
+                </div>
 
                 {/* Unstaged Images */}
                 <div className="mb-6">
@@ -289,31 +321,6 @@ export default function PropertyWorkbenchClient({
                     </div>
                   ) : (
                     <p className="text-gray-400">No unstaged images found</p>
-                  )}
-                </div>
-
-                {/* Generated Images */}
-                <div className="mb-6">
-                  <h3 className="text-xl font-medium mb-2">Generated Images</h3>
-                  {selectedProperty.generated_images?.length > 0 ? (
-                    <div className="grid grid-cols-4 gap-4">
-                      {selectedProperty.generated_images.map((image) => (
-                        <div
-                          key={image.id}
-                          className="border rounded overflow-hidden aspect-square"
-                        >
-                          <img
-                            src={`${
-                              process.env.NEXT_PUBLIC_AWS_IMAGE_SRC_ROOT || ''
-                            }${image.image_url}`}
-                            alt="Generated property"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-400">No generated images found</p>
                   )}
                 </div>
 

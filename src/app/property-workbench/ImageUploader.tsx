@@ -7,11 +7,13 @@ import imageCompression from 'browser-image-compression'
 interface ImageUploaderProps {
   propertyId: number
   streetAddress: string | null
+  onImageUploaded?: () => void
 }
 
 export default function ImageUploader({
   propertyId,
   streetAddress,
+  onImageUploaded,
 }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -89,6 +91,9 @@ export default function ImageUploader({
       if (result.success) {
         setUploadSuccess(true)
         setTimeout(() => setUploadSuccess(false), 3000)
+        if (onImageUploaded) {
+          onImageUploaded()
+        }
       } else {
         setErrorMessage(result.error || 'Upload failed')
         setTimeout(() => setErrorMessage(null), 3000)
