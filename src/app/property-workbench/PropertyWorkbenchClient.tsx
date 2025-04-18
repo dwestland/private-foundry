@@ -81,10 +81,10 @@ export default function PropertyWorkbenchClient({
   }
 
   return (
-    <div className="container mx-auto p-4 text-gray-800">
-      <h1 className="text-2xl font-bold mb-6 text-white">PROPERTY WORKBENCH</h1>
+    <div className="container mx-auto p-4">
+      <h1 className="text-4xl font-bold mb-6">PROPERTY WORKBENCH</h1>
 
-      <div className="flex flex-col md:flex-row gap-6">
+      <div className="flex flex-col md:flex-row gap-6 text-gray-800">
         {/* Left Column */}
         <div className="flex-1">
           {isLoading ? (
@@ -95,13 +95,15 @@ export default function PropertyWorkbenchClient({
             <>
               {/* Property Info Section */}
               <div className="mb-6 border rounded-lg p-4 bg-white shadow">
-                <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+                <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
                   PROPERTY INFO
                 </h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="font-medium">Street Address</p>
-                    <p>{renderValue(selectedProperty.street_address)}</p>
+                    <p className="text-3xl">
+                      {renderValue(selectedProperty.street_address)}
+                    </p>
                   </div>
                   <div>
                     <p className="font-medium">City</p>
@@ -126,7 +128,7 @@ export default function PropertyWorkbenchClient({
                     </p>
                   </div>
                   <div>
-                    <p className="font-medium">Days on Zillow</p>
+                    <p className="font-medium">Days on Zillow (When scraped)</p>
                     <p>{renderValue(selectedProperty.days_on_zillow)}</p>
                   </div>
                   <div>
@@ -138,7 +140,7 @@ export default function PropertyWorkbenchClient({
                     <p>{renderValue(selectedProperty.building_id)}</p>
                   </div>
                   <div>
-                    <p className="font-medium">Created At</p>
+                    <p className="font-medium">Record created at</p>
                     <p>
                       {selectedProperty.created_at?.toLocaleString() || (
                         <span className="text-gray-400">No Info</span>
@@ -151,7 +153,9 @@ export default function PropertyWorkbenchClient({
                   </div>
                   <div>
                     <p className="font-medium">Agent Contacted</p>
-                    <p>{selectedProperty.contacted_agent ? 'Yes' : 'No'}</p>
+                    <p className="text-3xl">
+                      {selectedProperty.contacted_agent ? 'Yes' : 'No'}
+                    </p>
                   </div>
                   <div>
                     <button
@@ -177,7 +181,7 @@ export default function PropertyWorkbenchClient({
 
               {/* Agent Info Section */}
               <div className="mb-6 border rounded-lg p-4 bg-white shadow">
-                <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+                <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
                   AGENT INFO
                 </h2>
                 <div className="flex">
@@ -185,7 +189,9 @@ export default function PropertyWorkbenchClient({
                     <div className="grid grid-cols-1 gap-4">
                       <div>
                         <p className="font-medium">Name</p>
-                        <p>{renderValue(selectedProperty.display_name)}</p>
+                        <p className="text-3xl">
+                          {renderValue(selectedProperty.display_name)}
+                        </p>
                       </div>
                       <div>
                         <p className="font-medium">Business Name</p>
@@ -193,7 +199,9 @@ export default function PropertyWorkbenchClient({
                       </div>
                       <div>
                         <p className="font-medium">Phone</p>
-                        <p>{renderValue(selectedProperty.phone_number)}</p>
+                        <p className="text-3xl">
+                          {renderValue(selectedProperty.phone_number)}
+                        </p>
                       </div>
                       <div>
                         <p className="font-medium">Agent Type</p>
@@ -207,13 +215,13 @@ export default function PropertyWorkbenchClient({
                               href={
                                 selectedProperty.profile_url.startsWith('http')
                                   ? selectedProperty.profile_url
-                                  : `https://${selectedProperty.profile_url}`
+                                  : `https://zillow.com${selectedProperty.profile_url}`
                               }
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-500 hover:underline"
                             >
-                              {selectedProperty.profile_url}
+                              https://zillow.com{selectedProperty.profile_url}
                             </a>
                           ) : (
                             <span className="text-gray-400">No Info</span>
@@ -222,7 +230,7 @@ export default function PropertyWorkbenchClient({
                       </div>
                     </div>
                   </div>
-                  <div className="w-24 h-24 ml-4">
+                  <div className="w-28 h-28 ml-4">
                     {selectedProperty.photo_url ? (
                       <img
                         src={selectedProperty.photo_url}
@@ -242,13 +250,13 @@ export default function PropertyWorkbenchClient({
 
               {/* Images Section */}
               <div className="border rounded-lg p-4 bg-white shadow">
-                <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+                <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
                   IMAGES
                 </h2>
 
                 {/* Unstaged Images */}
                 <div className="mb-6">
-                  <h3 className="font-medium mb-2">Unstaged Images</h3>
+                  <h3 className="text-xl font-medium mb-2">Unstaged Images</h3>
                   {selectedProperty.unstaged_images?.length > 0 ? (
                     <div className="grid grid-cols-4 gap-4">
                       {selectedProperty.unstaged_images.map((image) => (
@@ -271,7 +279,7 @@ export default function PropertyWorkbenchClient({
 
                 {/* Other Images */}
                 <div>
-                  <h3 className="font-medium mb-2">All Images</h3>
+                  <h3 className="text-xl font-medium mb-2">All Images</h3>
                   {selectedProperty.other_images?.length > 0 ? (
                     <div className="grid grid-cols-4 gap-4">
                       {selectedProperty.other_images.map((image) => (
@@ -305,7 +313,7 @@ export default function PropertyWorkbenchClient({
         {/* Right Column - New Leads */}
         <div className="md:w-64 lg:w-80">
           <div className="border rounded-lg p-4 bg-white shadow">
-            <h2 className="text-xl font-semibold mb-4 border-b pb-2">
+            <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
               NEW LEADS
             </h2>
             {newLeads.length > 0 ? (
