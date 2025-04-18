@@ -7,7 +7,11 @@ import {
   UnstagedImage,
   GeneratedImage,
 } from '@prisma/client'
-import { getPropertyById, toggleContactedAgent } from './actions'
+import {
+  getPropertyById,
+  toggleContactedAgent,
+  updatePropertyNotes,
+} from './actions'
 import ImageUploader from './ImageUploader'
 import { getS3ImageUrl } from '@/lib/utils'
 
@@ -38,6 +42,9 @@ export default function PropertyWorkbenchClient({
   const [isLoading, setIsLoading] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
   const [newLeads, setNewLeads] = useState<LeadProperty[]>(initialLeads)
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [notes, setNotes] = useState<string>('')
+  const [isSavingNotes, setIsSavingNotes] = useState(false)
 
   const renderValue = (value: string | number | boolean | null | undefined) => {
     if (value === null || value === undefined) {
@@ -55,11 +62,45 @@ export default function PropertyWorkbenchClient({
     try {
       const property = await getPropertyById(id)
       setSelectedProperty(property)
+      setNotes(property?.notes || '')
     } catch (error) {
       console.error('Error fetching property:', error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Function to handle notes editing
+  const handleEditNotes = () => {
+    setIsEditingNotes(true)
+  }
+
+  // Function to save notes
+  const handleSaveNotes = async () => {
+    if (!selectedProperty) return
+
+    setIsSavingNotes(true)
+    try {
+      await updatePropertyNotes(selectedProperty.id, notes)
+
+      // Update local state
+      const updatedProperty = {
+        ...selectedProperty,
+        notes,
+      }
+      setSelectedProperty(updatedProperty)
+      setIsEditingNotes(false)
+    } catch (error) {
+      console.error('Error saving notes:', error)
+    } finally {
+      setIsSavingNotes(false)
+    }
+  }
+
+  // Function to cancel notes editing
+  const handleCancelEdit = () => {
+    setNotes(selectedProperty?.notes || '')
+    setIsEditingNotes(false)
   }
 
   // Function to refresh property data after image upload
@@ -199,8 +240,9 @@ export default function PropertyWorkbenchClient({
                 <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
                   AGENT INFO
                 </h2>
-                <div className="flex">
-                  <div className="flex-1">
+                <div className="flex flex-wrap">
+                  {/* Left column - Agent details */}
+                  <div className="w-1/2">
                     <div className="grid grid-cols-1 gap-4">
                       <div>
                         <p className="font-medium">Name</p>
@@ -245,20 +287,81 @@ export default function PropertyWorkbenchClient({
                       </div>
                     </div>
                   </div>
-                  <div className="w-28 h-28 ml-4">
-                    {selectedProperty.photo_url ? (
-                      <img
-                        src={selectedProperty.photo_url}
-                        alt={selectedProperty.display_name || 'Agent'}
-                        className="w-full h-full object-cover border rounded-md"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-100 border rounded-md">
-                        <span className="text-gray-400 text-xs text-center">
-                          No Photo
-                        </span>
+
+                  {/* Right column - Photo and Notes */}
+                  <div className="w-1/2 pl-4">
+                    {/* Photo */}
+                    <div className="w-28 h-28 mb-4">
+                      {selectedProperty.photo_url ? (
+                        <img
+                          src={selectedProperty.photo_url}
+                          alt={selectedProperty.display_name || 'Agent'}
+                          className="w-full h-full object-cover border rounded-md"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 border rounded-md">
+                          <span className="text-gray-400 text-xs text-center">
+                            No Photo
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Notes Section directly below photo */}
+                    <div className="pt-2">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-lg font-medium">Notes</h3>
+                        {isEditingNotes ? (
+                          <div className="space-x-2">
+                            <button
+                              onClick={handleSaveNotes}
+                              disabled={isSavingNotes}
+                              className={`px-2 py-1 text-sm rounded text-white ${
+                                isSavingNotes
+                                  ? 'bg-gray-400 cursor-not-allowed'
+                                  : 'bg-green-500 hover:bg-green-600'
+                              }`}
+                            >
+                              {isSavingNotes ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              disabled={isSavingNotes}
+                              className="px-2 py-1 text-sm rounded text-gray-700 bg-gray-200 hover:bg-gray-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleEditNotes}
+                            className="px-2 py-1 text-sm rounded text-white bg-blue-500 hover:bg-blue-600"
+                          >
+                            Edit
+                          </button>
+                        )}
                       </div>
-                    )}
+
+                      {isEditingNotes ? (
+                        <textarea
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          className="w-full h-24 p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm"
+                          placeholder="Add notes about this property..."
+                          disabled={isSavingNotes}
+                        />
+                      ) : (
+                        <div className="p-2 bg-gray-50 rounded min-h-[6rem] text-sm">
+                          {selectedProperty.notes ? (
+                            <p className="whitespace-pre-wrap">
+                              {selectedProperty.notes}
+                            </p>
+                          ) : (
+                            <p className="text-gray-400">No notes available</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

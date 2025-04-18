@@ -156,3 +156,23 @@ export async function uploadImageToS3(formData: FormData) {
     }
   }
 }
+
+/**
+ * Update property notes
+ */
+export async function updatePropertyNotes(id: number, notes: string) {
+  try {
+    await prisma.property.update({
+      where: { id },
+      data: { notes },
+    })
+
+    // Revalidate the page
+    revalidatePath('/property-workbench')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating property notes:', error)
+    throw new Error('Failed to update property notes')
+  }
+}
