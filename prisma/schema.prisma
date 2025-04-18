@@ -124,6 +124,7 @@ model Property {
   days_on_zillow      Int?
   updated_first_image Boolean?         @default(false)
   contacted_agent     Boolean?         @default(false)
+  notes               String?
   created_at          DateTime         @default(now())
   updated_at          DateTime         @updatedAt
   generated_images    GeneratedImage[]
