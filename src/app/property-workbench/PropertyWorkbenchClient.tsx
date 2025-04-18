@@ -1,12 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { Property, OtherImage, UnstagedImage } from '@prisma/client'
+import {
+  Property,
+  OtherImage,
+  UnstagedImage,
+  GeneratedImage,
+} from '@prisma/client'
 import { getPropertyById, toggleContactedAgent } from './actions'
+import ImageUploader from './ImageUploader'
 
 interface PropertyWithRelations extends Property {
   unstaged_images: UnstagedImage[]
   other_images: OtherImage[]
+  generated_images: GeneratedImage[]
 }
 
 interface LeadProperty {
@@ -248,6 +255,14 @@ export default function PropertyWorkbenchClient({
                 </div>
               </div>
 
+              {/* Upload Generated Image Section */}
+              {selectedProperty && (
+                <ImageUploader
+                  propertyId={selectedProperty.id}
+                  streetAddress={selectedProperty.street_address}
+                />
+              )}
+
               {/* Images Section */}
               <div className="border rounded-lg p-4 bg-white shadow">
                 <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
@@ -274,6 +289,31 @@ export default function PropertyWorkbenchClient({
                     </div>
                   ) : (
                     <p className="text-gray-400">No unstaged images found</p>
+                  )}
+                </div>
+
+                {/* Generated Images */}
+                <div className="mb-6">
+                  <h3 className="text-xl font-medium mb-2">Generated Images</h3>
+                  {selectedProperty.generated_images?.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-4">
+                      {selectedProperty.generated_images.map((image) => (
+                        <div
+                          key={image.id}
+                          className="border rounded overflow-hidden aspect-square"
+                        >
+                          <img
+                            src={`${
+                              process.env.NEXT_PUBLIC_AWS_IMAGE_SRC_ROOT || ''
+                            }${image.image_url}`}
+                            alt="Generated property"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400">No generated images found</p>
                   )}
                 </div>
 
