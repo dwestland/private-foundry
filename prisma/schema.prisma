@@ -8,33 +8,30 @@ datasource db {
 }
 
 model Todo {
-  id          Int      @id @default(autoincrement())
-  title       String
-  completed   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    @@map("todo")
+  @@map("todo")
 }
 
-// NextAuth
 model User {
   id            String          @id @default(cuid())
   name          String?
   email         String          @unique
   emailVerified DateTime?
   image         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   accounts      Account[]
-  sessions      Session[]
-  // Optional for WebAuthn support
   Authenticator Authenticator[]
- 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  sessions      Session[]
 
   @@map("user")
 }
- 
+
 model Account {
   userId            String
   type              String
@@ -47,38 +44,34 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
- 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
- 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@id([provider, providerAccountId])
   @@map("account")
 }
- 
+
 model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@map("session")
 }
- 
+
 model VerificationToken {
   identifier String
   token      String
   expires    DateTime
- 
+
   @@id([identifier, token])
   @@map("verification_token")
 }
- 
-// Optional for WebAuthn support
+
 model Authenticator {
   credentialID         String  @unique
   userId               String
@@ -88,20 +81,19 @@ model Authenticator {
   credentialDeviceType String
   credentialBackedUp   Boolean
   transports           String?
- 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@id([userId, credentialID])
   @@map("authenticator")
 }
 
 model Flag {
-  id          Int      @id @default(autoincrement())
-  name       String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-    @@map("flag")
+  @@map("flag")
 }
 
 model Message {
@@ -114,32 +106,29 @@ model Message {
   @@map("message")
 }
 
-// Property related tables
 model Property {
-  id                   Int              @id @default(autoincrement())
-  street_address       String?
-  zipcode              String?
-  city                 String?
-  state                String?
-  building_id          String?
-  listing_status       String?
-  price                Float?
-  display_name         String?
-  business_name        String?
-  phone_number         String?
-  agent_badge_type     String?
-  photo_url            String?
-  profile_url          String?
-  days_on_zillow       Int?
-  updated_first_image  Boolean? @default(false)
-  contacted_agent      Boolean? @default(false)
-
-  created_at       DateTime         @default(now())
-  updated_at       DateTime         @updatedAt
-
-  other_images     OtherImage[]
-  unstaged_images  UnstagedImage[]
-  generated_images GeneratedImage[]
+  id                  Int              @id @default(autoincrement())
+  street_address      String?
+  zipcode             String?
+  city                String?
+  state               String?
+  building_id         String?
+  listing_status      String?
+  price               Float?
+  display_name        String?
+  business_name       String?
+  phone_number        String?
+  agent_badge_type    String?
+  photo_url           String?
+  profile_url         String?
+  days_on_zillow      Int?
+  updated_first_image Boolean?         @default(false)
+  contacted_agent     Boolean?         @default(false)
+  created_at          DateTime         @default(now())
+  updated_at          DateTime         @updatedAt
+  generated_images    GeneratedImage[]
+  other_images        OtherImage[]
+  unstaged_images     UnstagedImage[]
 
   @@map("property")
 }
@@ -148,8 +137,8 @@ model OtherImage {
   id          Int      @id @default(autoincrement())
   property_id Int
   image_url   String
-  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   created_at  DateTime @default(now())
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
 
   @@map("other_images")
 }
@@ -158,8 +147,8 @@ model UnstagedImage {
   id              Int      @id @default(autoincrement())
   property_id     Int
   unstaged_images String
-  property        Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   created_at      DateTime @default(now())
+  property        Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
 
   @@map("unstaged_images")
 }
@@ -168,8 +157,8 @@ model GeneratedImage {
   id          Int      @id @default(autoincrement())
   property_id Int
   image_url   String
-  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
   created_at  DateTime @default(now())
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
 
   @@map("generated_images")
 }
