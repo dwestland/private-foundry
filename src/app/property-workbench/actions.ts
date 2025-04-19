@@ -238,3 +238,151 @@ export async function deleteProperty(id: number) {
     throw new Error('Failed to delete property')
   }
 }
+
+/**
+ * Search properties by street address, display name, phone number or ID
+ * Supports fuzzy matching, acronyms, and partial matches
+ * Adding quotes allows exact matching
+ */
+export async function searchProperties(searchTerm: string, idOnly = false) {
+  try {
+    // Check if search term is empty
+    if (!searchTerm.trim()) {
+      return []
+    }
+
+    // Check if search term is a numeric ID - only for ID-only search
+    const isNumeric = /^\d+$/.test(searchTerm.trim())
+
+    // Handle ID-only search mode
+    if (idOnly) {
+      // In ID-only mode, only search for numeric IDs
+      if (!isNumeric) {
+        return [] // Return empty if not a number in ID-only mode
+      }
+
+      const propertyById = await prisma.property.findUnique({
+        where: { id: parseInt(searchTerm.trim()) },
+        select: {
+          id: true,
+          street_address: true,
+          state: true,
+          display_name: true,
+          phone_number: true,
+          created_at: true,
+          updated_at: true,
+          contacted_agent: true,
+        },
+      })
+
+      return propertyById ? [propertyById] : []
+    }
+
+    // For non-ID-only mode, continue with normal search
+
+    // Check for exact ID match first (but in normal mode, this is just one option)
+    if (isNumeric) {
+      const exactIdMatch = await prisma.property.findUnique({
+        where: { id: parseInt(searchTerm.trim()) },
+        select: {
+          id: true,
+          street_address: true,
+          state: true,
+          display_name: true,
+          phone_number: true,
+          created_at: true,
+          updated_at: true,
+          contacted_agent: true,
+        },
+      })
+
+      // If we found an exact ID match, include it in the results
+      // but still continue with the fuzzy search
+      const fuzzyMatches = await performFuzzySearch(searchTerm)
+
+      if (exactIdMatch) {
+        // Check if the exact match is already in the fuzzy results
+        const isDuplicate = fuzzyMatches.some((p) => p.id === exactIdMatch.id)
+
+        if (!isDuplicate) {
+          // Add the exact ID match at the beginning of results
+          return [exactIdMatch, ...fuzzyMatches]
+        }
+      }
+
+      return fuzzyMatches
+    }
+
+    // Check if the search is for an exact match (enclosed in quotes)
+    const exactMatch = searchTerm.match(/^"(.*)"$/)
+    if (exactMatch) {
+      return performExactSearch(exactMatch[1])
+    }
+
+    // For standard fuzzy/partial matching
+    return performFuzzySearch(searchTerm)
+  } catch (error) {
+    console.error('Error searching properties:', error)
+    throw new Error('Failed to search properties')
+  }
+}
+
+/**
+ * Helper function to perform exact search with quoted terms
+ */
+async function performExactSearch(term: string) {
+  return await prisma.property.findMany({
+    where: {
+      OR: [
+        { street_address: { equals: term, mode: 'insensitive' } },
+        { display_name: { equals: term, mode: 'insensitive' } },
+        { phone_number: { equals: term, mode: 'insensitive' } },
+      ],
+    },
+    select: {
+      id: true,
+      street_address: true,
+      state: true,
+      display_name: true,
+      phone_number: true,
+      created_at: true,
+      updated_at: true,
+      contacted_agent: true,
+    },
+    orderBy: {
+      updated_at: 'desc',
+    },
+    take: 31, // Get one more than we need to check for more results
+  })
+}
+
+/**
+ * Helper function to perform fuzzy search for partial matches
+ */
+async function performFuzzySearch(searchTerm: string) {
+  const term = searchTerm.trim()
+
+  return await prisma.property.findMany({
+    where: {
+      OR: [
+        { street_address: { contains: term, mode: 'insensitive' } },
+        { display_name: { contains: term, mode: 'insensitive' } },
+        { phone_number: { contains: term, mode: 'insensitive' } },
+      ],
+    },
+    select: {
+      id: true,
+      street_address: true,
+      state: true,
+      display_name: true,
+      phone_number: true,
+      created_at: true,
+      updated_at: true,
+      contacted_agent: true,
+    },
+    orderBy: {
+      updated_at: 'desc',
+    },
+    take: 31, // Get one more than we need to check for more results
+  })
+}

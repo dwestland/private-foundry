@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
   Property,
   OtherImage,
@@ -12,6 +12,7 @@ import {
   toggleContactedAgent,
   updatePropertyNotes,
   deleteProperty,
+  searchProperties,
 } from './actions'
 import ImageUploader from './ImageUploader'
 import { getS3ImageUrl } from '@/lib/utils'
@@ -28,6 +29,17 @@ interface LeadProperty {
   street_address: string | null
   state: string | null
   created_at: Date
+}
+
+interface SearchResultProperty {
+  id: number
+  street_address: string | null
+  state: string | null
+  display_name: string | null
+  phone_number: string | null
+  created_at: Date
+  updated_at: Date
+  contacted_agent: boolean | null
 }
 
 interface PropertyWorkbenchClientProps {
@@ -53,6 +65,14 @@ export default function PropertyWorkbenchClient({
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Search related state
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResultProperty[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [hasMoreResults, setHasMoreResults] = useState(false)
+  const [idOnlySearch, setIdOnlySearch] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const renderValue = (value: string | number | boolean | null | undefined) => {
     if (value === null || value === undefined) {
@@ -210,6 +230,69 @@ export default function PropertyWorkbenchClient({
     setIsDeleteDialogOpen(true)
   }
 
+  // Function to handle search input changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+
+    // Clear results if the search term is empty
+    if (!e.target.value.trim()) {
+      setSearchResults([])
+      setHasMoreResults(false)
+    }
+  }
+
+  // Function to clear search
+  const clearSearch = () => {
+    setSearchTerm('')
+    setSearchResults([])
+    setHasMoreResults(false)
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }
+
+  // Function to handle search
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!searchTerm.trim()) {
+      setSearchResults([])
+      setHasMoreResults(false)
+      return
+    }
+
+    setIsSearching(true)
+
+    try {
+      const results = await searchProperties(searchTerm, idOnlySearch)
+
+      // Check if we have more results than we can display
+      if (results.length > 30) {
+        setHasMoreResults(true)
+        setSearchResults(results.slice(0, 30))
+      } else {
+        setHasMoreResults(false)
+        setSearchResults(results)
+      }
+    } catch (error) {
+      console.error('Error searching properties:', error)
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  // Function to toggle ID-only search
+  const toggleIdOnlySearch = () => {
+    setIdOnlySearch(!idOnlySearch)
+    // Clear results when changing search mode
+    setSearchResults([])
+    setHasMoreResults(false)
+    // Focus the search input after toggling
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-4xl font-bold mb-6">PROPERTY WORKBENCH</h1>
@@ -278,7 +361,7 @@ export default function PropertyWorkbenchClient({
                     </p>
                   </div>
                   <div>
-                    <p className="font-medium">Fast Stager ID</p>
+                    <p className="font-medium">Property ID</p>
                     <p>{renderValue(selectedProperty.id)}</p>
                   </div>
                   <div>
@@ -567,6 +650,190 @@ export default function PropertyWorkbenchClient({
 
         {/* Right Column - Property Lists */}
         <div className="md:w-64 lg:w-80 flex flex-col gap-6">
+          {/* Search Section */}
+          <div className="border rounded-lg p-4 bg-white shadow">
+            <div className="flex justify-between items-center mb-4 border-b pb-2">
+              <h2 className="text-2xl font-semibold">SEARCH</h2>
+              <div className="flex items-center pl-4">
+                <input
+                  type="checkbox"
+                  id="id-only-search"
+                  checked={idOnlySearch}
+                  onChange={toggleIdOnlySearch}
+                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="id-only-search"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Search for property ID only
+                </label>
+              </div>
+            </div>
+            <form onSubmit={handleSearch} className="mb-4">
+              <div className="relative">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  placeholder={
+                    idOnlySearch
+                      ? 'Search by property ID'
+                      : 'Search by address, name, phone, or ID'
+                  }
+                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none pr-10"
+                  disabled={isSearching}
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={clearSearch}
+                    className="absolute right-10 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    title="Clear search"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500 hover:text-blue-700"
+                  disabled={isSearching}
+                >
+                  {isSearching ? (
+                    <svg
+                      className="animate-spin h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Search Results */}
+            {searchResults.length > 0 ? (
+              <div className="overflow-auto h-[440px]">
+                <table className="w-full text-sm table-fixed">
+                  <colgroup>
+                    <col style={{ width: '70%' }} />
+                    <col style={{ width: '30%' }} />
+                  </colgroup>
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="p-2 text-left">Property</th>
+                      <th className="p-2 text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchResults.map((property) => (
+                      <tr
+                        key={property.id}
+                        className={`border-b hover:bg-gray-50 cursor-pointer ${
+                          selectedProperty?.id === property.id
+                            ? 'bg-blue-50'
+                            : ''
+                        }`}
+                        onClick={() => fetchProperty(property.id)}
+                      >
+                        <td className="p-2 pr-0 align-top">
+                          <div className="font-medium">
+                            {property.street_address || (
+                              <span className="text-gray-400">No Address</span>
+                            )}
+                          </div>
+                          {property.display_name && (
+                            <div className="text-xs text-gray-600">
+                              Agent: {property.display_name}
+                            </div>
+                          )}
+                          {property.phone_number && (
+                            <div className="text-xs text-gray-600">
+                              Phone: {property.phone_number}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600">
+                            ID: {property.id}
+                          </div>
+                        </td>
+                        <td className="p-2 align-top">
+                          <div className="flex justify-start">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs whitespace-nowrap ${
+                                property.contacted_agent
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {property.contacted_agent
+                                ? 'Contacted'
+                                : 'New Lead'}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {hasMoreResults && (
+                  <div className="p-2 text-center text-yellow-600 bg-yellow-50 border-t border-yellow-200">
+                    More than 30 properties found. Please refine your search.
+                  </div>
+                )}
+              </div>
+            ) : (
+              searchTerm &&
+              !isSearching && (
+                <div className="p-4 text-center text-gray-500 bg-gray-50 rounded">
+                  No properties found.
+                </div>
+              )
+            )}
+          </div>
+
           {/* New Leads Section */}
           <div className="border rounded-lg p-4 bg-white shadow">
             <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
