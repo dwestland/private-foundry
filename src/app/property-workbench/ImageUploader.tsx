@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { uploadImageToS3 } from './actions'
 import imageCompression from 'browser-image-compression'
 
@@ -20,6 +20,8 @@ export default function ImageUploader({
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [compressionProgress, setCompressionProgress] = useState(0)
+  const [isPasteFocused, setIsPasteFocused] = useState(false)
+  const [watermarkProgress, setWatermarkProgress] = useState(0)
 
   const slugifyAddress = (address: string | null) => {
     if (!address) return 'property'
@@ -27,6 +29,104 @@ export default function ImageUploader({
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
+  }
+
+  // Apply watermark to the image
+  const applyWatermark = async (imageFile: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      try {
+        setWatermarkProgress(10)
+
+        // Create Image objects for the source image and watermark
+        const sourceImage = new Image()
+        const watermarkImage = new Image()
+
+        // Load the watermark image first
+        watermarkImage.onload = () => {
+          setWatermarkProgress(40)
+
+          // Create a FileReader to read the source image
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            if (!e.target?.result) {
+              reject(new Error('Failed to read source image'))
+              return
+            }
+
+            // Once the source image is read, create an Image from it
+            sourceImage.onload = () => {
+              setWatermarkProgress(70)
+
+              // Create a canvas to combine the images
+              const canvas = document.createElement('canvas')
+              const ctx = canvas.getContext('2d')
+
+              if (!ctx) {
+                reject(new Error('Failed to create canvas context'))
+                return
+              }
+
+              // Set canvas dimensions to match the source image
+              canvas.width = sourceImage.width
+              canvas.height = sourceImage.height
+
+              // Draw the source image
+              ctx.drawImage(sourceImage, 0, 0)
+
+              // Draw the watermark, scaled to fit the source image
+              ctx.drawImage(
+                watermarkImage,
+                0,
+                0,
+                sourceImage.width,
+                sourceImage.height
+              )
+
+              setWatermarkProgress(90)
+
+              // Convert the canvas to a blob
+              canvas.toBlob(
+                (blob) => {
+                  if (!blob) {
+                    reject(new Error('Failed to create image blob'))
+                    return
+                  }
+
+                  // Create a new File from the blob
+                  const watermarkedFile = new File(
+                    [blob],
+                    `watermarked-${imageFile.name}`,
+                    { type: 'image/jpeg' }
+                  )
+
+                  setWatermarkProgress(100)
+                  resolve(watermarkedFile)
+                },
+                'image/jpeg',
+                0.95
+              )
+            }
+
+            // Set the source of the source image
+            sourceImage.src = e.target.result as string
+          }
+
+          // Start reading the source image
+          reader.readAsDataURL(imageFile)
+        }
+
+        // Load the watermark image
+        watermarkImage.src = '/watermark.png'
+
+        // Handle watermark loading error
+        watermarkImage.onerror = () => {
+          reject(new Error('Failed to load watermark image'))
+        }
+      } catch (error) {
+        console.error('Error applying watermark:', error)
+        reject(error)
+      }
+    })
   }
 
   // Process image - resize and compress
@@ -79,9 +179,12 @@ export default function ImageUploader({
       // Process the image - resize and compress
       const processedFile = await processImage(file)
 
+      // Apply watermark to the processed image
+      const watermarkedFile = await applyWatermark(processedFile)
+
       // Create a FormData object to send the file
       const formData = new FormData()
-      formData.append('file', processedFile)
+      formData.append('file', watermarkedFile)
       formData.append('propertyId', propertyId.toString())
       formData.append('streetAddress', slugifyAddress(streetAddress))
 
@@ -105,6 +208,7 @@ export default function ImageUploader({
     } finally {
       setIsUploading(false)
       setCompressionProgress(0)
+      setWatermarkProgress(0)
     }
   }
 
@@ -143,21 +247,110 @@ export default function ImageUploader({
     [handleFileUpload]
   )
 
+  const triggerFileInput = () => {
+    document.getElementById('file-upload')?.click()
+  }
+
+  // Handle clipboard paste
+  const handlePaste = useCallback(
+    async (e: ClipboardEvent) => {
+      // Only process paste events if the paste area is focused
+      if (
+        !isPasteFocused &&
+        !document.getElementById('paste-area')?.contains(document.activeElement)
+      ) {
+        return
+      }
+
+      // Check if there are items in the clipboard
+      if (!e.clipboardData || !e.clipboardData.items) return
+
+      // Prevent the default paste behavior
+      e.preventDefault()
+
+      // Look for image data in the clipboard
+      for (let i = 0; i < e.clipboardData.items.length; i++) {
+        const item = e.clipboardData.items[i]
+
+        // Check if item is an image
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile()
+          if (file) {
+            console.log(
+              'Processing pasted image:',
+              file.name,
+              file.type,
+              file.size
+            )
+            await handleFileUpload(file)
+            break // Process only the first image found
+          }
+        }
+      }
+    },
+    [handleFileUpload, isPasteFocused]
+  )
+
+  // Set up and clean up the paste event listener
+  useEffect(() => {
+    // Add the paste event listener
+    window.addEventListener('paste', handlePaste)
+
+    // Clean up the event listener when the component unmounts
+    return () => {
+      window.removeEventListener('paste', handlePaste)
+    }
+  }, [handlePaste])
+
   return (
     <div className="mb-6 border rounded-lg p-4 bg-white shadow">
-      <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
-        UPLOAD GENERATED IMAGE
-      </h2>
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <h2 className="text-2xl font-semibold">UPLOAD GENERATED IMAGE</h2>
+        <button
+          onClick={triggerFileInput}
+          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center shadow-sm"
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <span className="inline-block animate-spin mr-2 h-4 w-4 border-2 border-solid border-white border-r-transparent rounded-full"></span>
+          ) : (
+            <svg
+              className="w-5 h-5 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+          )}
+          {isUploading ? 'Uploading...' : 'Upload Image'}
+        </button>
+      </div>
 
       <div
+        id="paste-area"
         className={`
-          border-2 border-dashed rounded-lg p-8 text-center cursor-pointer relative
-          ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}
+          border-2 border-dashed rounded-lg p-8 text-center relative
+          ${
+            isDragging
+              ? 'border-blue-500 bg-blue-50'
+              : isPasteFocused
+              ? 'border-green-500 bg-green-50'
+              : 'border-gray-300'
+          }
         `}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => document.getElementById('file-upload')?.click()}
+        tabIndex={0}
+        onFocus={() => setIsPasteFocused(true)}
+        onBlur={() => setIsPasteFocused(false)}
       >
         <input
           type="file"
@@ -185,7 +378,19 @@ export default function ImageUploader({
 
           {isUploading ? (
             <div className="text-center">
-              {compressionProgress > 0 && compressionProgress < 100 ? (
+              {watermarkProgress > 0 && watermarkProgress < 100 ? (
+                <div className="mb-2">
+                  <p className="text-green-500">
+                    Applying watermark: {watermarkProgress}%
+                  </p>
+                  <div className="w-48 bg-gray-200 rounded-full h-2 mt-1">
+                    <div
+                      className="bg-green-500 h-2 rounded-full"
+                      style={{ width: `${watermarkProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ) : compressionProgress > 0 && compressionProgress < 100 ? (
                 <div className="mb-2">
                   <p className="text-blue-500">
                     Processing image: {compressionProgress}%
@@ -206,14 +411,21 @@ export default function ImageUploader({
           ) : (
             <>
               <p className="text-lg font-medium">
-                Drag and drop your image here or click to browse
+                Drag and drop your image here or paste from clipboard
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                Images will be compressed and converted to JPG
+                Images will be compressed, watermarked, and converted to JPG
               </p>
               <p className="text-sm text-gray-500">
                 Max width: 768px, Quality: 60%
               </p>
+              <div className="mt-3 p-2 bg-gray-50 rounded-md border border-gray-200">
+                <p className="text-sm font-medium">
+                  To paste: Click here and press{' '}
+                  <kbd className="px-2 py-1 bg-gray-200 rounded">Ctrl+V</kbd> or{' '}
+                  <kbd className="px-2 py-1 bg-gray-200 rounded">⌘+V</kbd>
+                </p>
+              </div>
             </>
           )}
         </div>
