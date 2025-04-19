@@ -176,3 +176,39 @@ export async function updatePropertyNotes(id: number, notes: string) {
     throw new Error('Failed to update property notes')
   }
 }
+
+/**
+ * Delete a property by ID and all its related records
+ */
+export async function deleteProperty(id: number) {
+  try {
+    // Use a transaction to ensure all related data is deleted
+    await prisma.$transaction(async (tx) => {
+      // Delete related images first (foreign key constraints)
+      await tx.otherImage.deleteMany({
+        where: { property_id: id },
+      })
+
+      await tx.generatedImage.deleteMany({
+        where: { property_id: id },
+      })
+
+      await tx.unstagedImage.deleteMany({
+        where: { property_id: id },
+      })
+
+      // Delete the property itself
+      await tx.property.delete({
+        where: { id },
+      })
+    })
+
+    // Revalidate the page
+    revalidatePath('/property-workbench')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting property:', error)
+    throw new Error('Failed to delete property')
+  }
+}

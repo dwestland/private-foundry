@@ -11,9 +11,11 @@ import {
   getPropertyById,
   toggleContactedAgent,
   updatePropertyNotes,
+  deleteProperty,
 } from './actions'
 import ImageUploader from './ImageUploader'
 import { getS3ImageUrl } from '@/lib/utils'
+import ConfirmationDialog from '@/components/ConfirmationDialog'
 
 interface PropertyWithRelations extends Property {
   unstaged_images: UnstagedImage[]
@@ -45,6 +47,8 @@ export default function PropertyWorkbenchClient({
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [notes, setNotes] = useState<string>('')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const renderValue = (value: string | number | boolean | null | undefined) => {
     if (value === null || value === undefined) {
@@ -134,6 +138,43 @@ export default function PropertyWorkbenchClient({
     } finally {
       setIsToggling(false)
     }
+  }
+
+  // Function to handle property deletion
+  const handleDeleteProperty = async () => {
+    if (!selectedProperty || isDeleting) return
+
+    setIsDeleting(true)
+    try {
+      // Store property info for feedback
+      const propertyAddress = selectedProperty.street_address || 'property'
+
+      await deleteProperty(selectedProperty.id)
+
+      // After successful deletion, clear selected property and refresh leads
+      setSelectedProperty(null)
+
+      // If property was in the newLeads list, update it
+      if (selectedProperty.contacted_agent === false) {
+        setNewLeads(newLeads.filter((lead) => lead.id !== selectedProperty.id))
+      }
+
+      // Show success notification (optional)
+      alert(
+        `Property '${propertyAddress}' and all related images have been deleted.`
+      )
+    } catch (error) {
+      console.error('Error deleting property:', error)
+      alert('Failed to delete the property. Please try again.')
+    } finally {
+      setIsDeleting(false)
+      setIsDeleteDialogOpen(false)
+    }
+  }
+
+  // Function to open delete confirmation dialog
+  const openDeleteDialog = () => {
+    setIsDeleteDialogOpen(true)
   }
 
   return (
@@ -450,6 +491,37 @@ export default function PropertyWorkbenchClient({
                   )}
                 </div>
               </div>
+
+              {/* Delete Property Button - Bottom right of Images section */}
+              <div className="flex justify-end mt-6 mb-6">
+                <button
+                  onClick={openDeleteDialog}
+                  className="px-4 py-2 rounded text-white bg-red-600 hover:bg-red-700 flex items-center shadow-md"
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <span className="inline-block animate-spin mr-2 h-5 w-5 border-2 border-solid border-white border-r-transparent rounded-full"></span>
+                  ) : (
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  )}
+                  <span className="font-medium">
+                    {isDeleting ? 'Deleting...' : 'Delete Property'}
+                  </span>
+                </button>
+              </div>
             </>
           ) : (
             <div className="border rounded-lg p-4 bg-white shadow text-center">
@@ -505,6 +577,19 @@ export default function PropertyWorkbenchClient({
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog for Deleting Property */}
+      {selectedProperty && (
+        <ConfirmationDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onConfirm={handleDeleteProperty}
+          title="Delete Property"
+          message={`Are you sure you want to delete '${
+            selectedProperty.street_address || 'this property'
+          }'? This will also delete all related images.`}
+        />
+      )}
     </div>
   )
 }
