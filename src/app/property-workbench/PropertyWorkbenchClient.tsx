@@ -33,17 +33,21 @@ interface LeadProperty {
 interface PropertyWorkbenchClientProps {
   initialProperty: PropertyWithRelations | null
   newLeads: LeadProperty[]
+  recentlyContactedProperties: LeadProperty[]
 }
 
 export default function PropertyWorkbenchClient({
   initialProperty,
   newLeads: initialLeads,
+  recentlyContactedProperties: initialContactedProperties,
 }: PropertyWorkbenchClientProps) {
   const [selectedProperty, setSelectedProperty] =
     useState<PropertyWithRelations | null>(initialProperty)
   const [isLoading, setIsLoading] = useState(false)
   const [isToggling, setIsToggling] = useState(false)
   const [newLeads, setNewLeads] = useState<LeadProperty[]>(initialLeads)
+  const [recentlyContactedProperties, setRecentlyContactedProperties] =
+    useState<LeadProperty[]>(initialContactedProperties)
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [notes, setNotes] = useState<string>('')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
@@ -129,9 +133,32 @@ export default function PropertyWorkbenchClient({
       }
       setSelectedProperty(updatedProperty)
 
-      // Update leads list if property was marked as contacted
+      // Create a property entry for the lists
+      const propertyForList = {
+        id: selectedProperty.id,
+        street_address: selectedProperty.street_address,
+        state: selectedProperty.state,
+        created_at: selectedProperty.created_at,
+      }
+
+      // Update leads lists based on the new status
       if (!selectedProperty.contacted_agent) {
+        // Property was NOT contacted, now it IS contacted
+        // Remove from newLeads and add to recentlyContactedProperties
         setNewLeads(newLeads.filter((lead) => lead.id !== selectedProperty.id))
+        setRecentlyContactedProperties([
+          propertyForList,
+          ...recentlyContactedProperties,
+        ])
+      } else {
+        // Property WAS contacted, now it is NOT contacted
+        // Remove from recentlyContactedProperties and add to newLeads
+        setRecentlyContactedProperties(
+          recentlyContactedProperties.filter(
+            (property) => property.id !== selectedProperty.id
+          )
+        )
+        setNewLeads([propertyForList, ...newLeads])
       }
     } catch (error) {
       console.error('Error toggling contact status:', error)
@@ -154,9 +181,15 @@ export default function PropertyWorkbenchClient({
       // After successful deletion, clear selected property and refresh leads
       setSelectedProperty(null)
 
-      // If property was in the newLeads list, update it
+      // Update both lists to remove the deleted property
       if (selectedProperty.contacted_agent === false) {
         setNewLeads(newLeads.filter((lead) => lead.id !== selectedProperty.id))
+      } else {
+        setRecentlyContactedProperties(
+          recentlyContactedProperties.filter(
+            (property) => property.id !== selectedProperty.id
+          )
+        )
       }
 
       // Show success notification (optional)
@@ -532,16 +565,17 @@ export default function PropertyWorkbenchClient({
           )}
         </div>
 
-        {/* Right Column - New Leads */}
-        <div className="md:w-64 lg:w-80">
+        {/* Right Column - Property Lists */}
+        <div className="md:w-64 lg:w-80 flex flex-col gap-6">
+          {/* New Leads Section */}
           <div className="border rounded-lg p-4 bg-white shadow">
             <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
               NEW LEADS
             </h2>
             {newLeads.length > 0 ? (
-              <div className="overflow-auto max-h-[80vh]">
+              <div className="overflow-auto h-[640px]">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="p-2 text-left">Address</th>
                       <th className="p-2 text-left">State</th>
@@ -573,6 +607,51 @@ export default function PropertyWorkbenchClient({
               </div>
             ) : (
               <p className="text-gray-400">No new leads found</p>
+            )}
+          </div>
+
+          {/* Recently Contacted Section */}
+          <div className="border rounded-lg p-4 bg-white shadow">
+            <h2 className="text-2xl font-semibold mb-4 border-b pb-2">
+              RECENTLY CONTACTED
+            </h2>
+            {recentlyContactedProperties.length > 0 ? (
+              <div className="overflow-auto h-[640px]">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="p-2 text-left">Address</th>
+                      <th className="p-2 text-left">State</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentlyContactedProperties.map((property) => (
+                      <tr
+                        key={property.id}
+                        className={`border-b hover:bg-gray-50 cursor-pointer ${
+                          selectedProperty?.id === property.id
+                            ? 'bg-blue-50'
+                            : ''
+                        }`}
+                        onClick={() => fetchProperty(property.id)}
+                      >
+                        <td className="p-2">
+                          {property.street_address || (
+                            <span className="text-gray-400">No Address</span>
+                          )}
+                        </td>
+                        <td className="p-2">
+                          {property.state || (
+                            <span className="text-gray-400">N/A</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-400">No contacted properties found</p>
             )}
           </div>
         </div>

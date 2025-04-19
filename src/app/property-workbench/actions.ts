@@ -52,6 +52,32 @@ export async function getNewLeads() {
 }
 
 /**
+ * Get recently contacted properties (contacted_agent is true)
+ */
+export async function getRecentlyContactedProperties() {
+  try {
+    const contactedProperties = await prisma.property.findMany({
+      where: {
+        contacted_agent: true,
+      },
+      select: {
+        id: true,
+        street_address: true,
+        state: true,
+        created_at: true,
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    })
+    return contactedProperties
+  } catch (error) {
+    console.error('Error fetching contacted properties:', error)
+    throw new Error('Failed to fetch contacted properties')
+  }
+}
+
+/**
  * Toggle the contacted_agent status for a property
  */
 export async function toggleContactedAgent(id: number) {
